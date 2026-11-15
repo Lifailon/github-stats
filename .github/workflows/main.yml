@@ -39,26 +39,22 @@ jobs:
 
     - name: Generate images
       run: |
-        # Проверяем, что переменная EXCLUDE_ALL_FORKS задана и равна true (в любом регистре)
         if [[ "${EXCLUDE_ALL_FORKS,,}" == "true" ]]; then
-          # 1. Собираем сырой список всех репозиториев во временный файл
           ./zig-out/bin/github-stats --json-output-file /tmp/stats.json
-          # 2. Выбираем все репозитории, которые НЕ начинаются с "Lifailon/"
-          FOREIGN_REPOS=$(jq -r '[.repositories[].name | select(startswith("Lifailon/") | not)] | join(",")' /tmp/stats.json)
-          # 3. Объединяем исключения из секретов с найденными чужими репозиториями
+          FOREIGN_REPOS=$(jq -r --arg owner "${REPO_OWNER}/" '[.repositories[].name | select(startswith($owner) | not)] | join(",")' /tmp/stats.json)
           if [ -n "$EXCLUDE_REPOS" ] && [ -n "$FOREIGN_REPOS" ]; then
             export EXCLUDE_REPOS="$EXCLUDE_REPOS,$FOREIGN_REPOS"
           elif [ -n "$FOREIGN_REPOS" ]; then
             export EXCLUDE_REPOS="$FOREIGN_REPOS"
           fi
         fi
-        # 4. Генерируем итоговые SVG
         ./zig-out/bin/github-stats
       env:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         EXCLUDE_REPOS: ${{ secrets.EXCLUDE_REPOS }}
         EXCLUDE_LANGS: ${{ secrets.EXCLUDE_LANGS }}
         EXCLUDE_ALL_FORKS: ${{ secrets.EXCLUDE_ALL_FORKS }}
+        REPO_OWNER: ${{ github.repository_owner }}
         EXCLUDE_PRIVATE: "false"
         SILENT: "true"
         # TODO: Remove this when they get their API working again
